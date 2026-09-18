@@ -136,19 +136,19 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
                 ) : (
                   <span className="text-emerald-400 text-[10px]">Live Meta Synced</span>
                 )}
-                {/* Hide / Show Preview Card Toggle Button */}
+                {/* Hide Preview Card X Button */}
                 <button
                   id="hide-preview-card-btn"
                   type="button"
                   onClick={() => setIsCardPreviewVisible(!isCardPreviewVisible)}
                   className="px-2 py-0.5 text-[10px] font-medium text-stone-300 hover:text-white bg-stone-800/90 hover:bg-stone-700 border border-stone-700 rounded transition-colors flex items-center gap-1 cursor-pointer"
-                  title={isCardPreviewVisible ? "Hide Social Card Preview" : "Show Social Card Preview"}
+                  title={isCardPreviewVisible ? "Hide Social Card Preview (X)" : "Show Social Card Preview"}
                   aria-expanded={isCardPreviewVisible}
                 >
                   {isCardPreviewVisible ? (
                     <>
-                      <EyeOff className="w-3 h-3 text-[#C5A880]" />
-                      <span>Hide Preview</span>
+                      <X className="w-3 h-3 text-[#C5A880]" />
+                      <span>Hide (X)</span>
                     </>
                   ) : (
                     <>
@@ -161,7 +161,19 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
             </div>
 
             {isCardPreviewVisible ? (
-              <div className="relative aspect-[1200/630] w-full overflow-hidden bg-stone-900 border border-stone-800 flex items-center justify-center">
+              <div className="relative aspect-[1200/630] w-full overflow-hidden bg-stone-900 border border-stone-800 flex items-center justify-center group">
+                {/* Floating X button on top-right of preview card to hide */}
+                <button
+                  id="hide-preview-card-x-btn"
+                  type="button"
+                  onClick={() => setIsCardPreviewVisible(false)}
+                  className="absolute top-2.5 right-2.5 z-20 p-1.5 bg-black/80 hover:bg-black text-stone-300 hover:text-white rounded-full border border-white/20 transition-all shadow-lg backdrop-blur-xs flex items-center justify-center cursor-pointer group-hover:scale-105"
+                  title="Hide social card preview (X)"
+                  aria-label="Hide social card preview"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+
                 {dynamicOgUrl ? (
                   <img
                     src={dynamicOgUrl}
@@ -179,9 +191,10 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
                   id="unhide-card-preview-btn"
                   type="button"
                   onClick={() => setIsCardPreviewVisible(true)}
-                  className="text-[11px] text-[#C5A880] hover:underline font-medium ml-2 shrink-0 cursor-pointer"
+                  className="text-[11px] text-[#C5A880] hover:underline font-medium ml-2 shrink-0 cursor-pointer flex items-center gap-1"
                 >
-                  Unhide Card
+                  <Eye className="w-3 h-3" />
+                  <span>Show Card</span>
                 </button>
               </div>
             )}
@@ -294,10 +307,12 @@ export const SocialShareModal: React.FC<SocialShareModalProps> = ({
                 id="hide-share-modal-btn"
                 type="button"
                 onClick={onClose}
-                className="px-4 py-1.5 bg-stone-200 hover:bg-stone-300 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer"
+                className="px-4 py-1.5 bg-stone-200 hover:bg-stone-300 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1.5"
                 aria-label="Hide share studio modal"
+                title="Hide share studio modal (X)"
               >
-                Hide
+                <X className="w-3.5 h-3.5" />
+                <span>Hide (X)</span>
               </button>
             </div>
           </div>
