@@ -1,0 +1,6 @@
+{
+  "name": "Heaven Furniture Mart",
+  "description": "Luxury & bespoke furniture studio in Agrabad, Chattogram. Handcrafted living, bedroom, dining, and custom furniture tailored to your space.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
