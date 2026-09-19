@@ -31,6 +31,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuote }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
   const navLinks = [
     { name: 'Featured Suites', href: '#featured-slider' },
     { name: 'Collections', href: '#collections' },
@@ -157,72 +168,81 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuote }) => {
         </div>
       </div>
 
-      {/* Mobile Menu Drawer */}
+      {/* Mobile Menu Drawer & Backdrop Overlay */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-[#FAF8F5] dark:bg-[#0E1A1C] border-b border-[#C5A880]/30 px-6 py-6 shadow-xl transition-all">
-          <nav className="flex flex-col space-y-4 text-base font-medium text-[#2C221E] dark:text-[#FAF8F5]">
-            {navLinks.map((link) => (
+        <>
+          <div
+            id="mobile-nav-backdrop"
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 top-[60px] bg-black/60 backdrop-blur-xs z-40 lg:hidden transition-opacity"
+            aria-hidden="true"
+          />
+          <div className="fixed top-[60px] left-0 right-0 z-50 lg:hidden bg-[#FAF8F5] dark:bg-[#0E1A1C] border-b border-[#C5A880]/40 px-6 py-6 shadow-2xl transition-all max-h-[calc(100vh-70px)] overflow-y-auto">
+            <nav className="flex flex-col space-y-4 text-base font-medium text-[#2C221E] dark:text-[#FAF8F5]">
+              {navLinks.map((link) => (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-2 border-b border-stone-200/50 dark:border-stone-800 text-[#132629] dark:text-[#FAF8F5] hover:text-[#8C6239] dark:hover:text-[#C5A880] transition-colors flex items-center justify-between"
+                >
+                  <span>{link.name}</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#C5A880] opacity-60" />
+                </a>
+              ))}
+            </nav>
+
+            <div className="mt-6 pt-4 border-t border-stone-200 dark:border-stone-800 flex flex-col gap-3">
+              <div className="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400 uppercase tracking-wider">
+                <span>Agrabad Showroom · Chattogram</span>
+                <span className="text-[11px] font-medium text-[#8C6239] dark:text-[#C5A880]">
+                  Bespoke Atelier
+                </span>
+              </div>
+
               <a
-                key={link.name}
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="py-1.5 border-b border-stone-200/50 dark:border-stone-800 text-[#132629] dark:text-[#FAF8F5] hover:text-[#8C6239] dark:hover:text-[#C5A880] transition-colors"
+                href="tel:+8801960481983"
+                className="flex items-center gap-2.5 text-sm font-semibold text-[#132629] dark:text-[#FAF8F5] py-2 px-3 rounded-lg bg-stone-100 dark:bg-stone-800/80"
               >
-                {link.name}
+                <Phone className="w-4 h-4 text-[#8C6239] dark:text-[#C5A880]" />
+                <span>+880 1960-481983</span>
               </a>
-            ))}
-          </nav>
 
-          <div className="mt-6 pt-4 border-t border-stone-200 dark:border-stone-800 flex flex-col gap-3">
-            <div className="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400 uppercase tracking-wider">
-              <span>Agrabad Showroom · Chattogram</span>
-              <span className="text-[11px] font-medium text-[#8C6239] dark:text-[#C5A880]">
-                Bespoke Atelier
-              </span>
+              <a
+                href="https://wa.me/8801960481983"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 text-sm font-semibold text-emerald-800 dark:text-emerald-300 py-2 px-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/20"
+              >
+                <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Chat on WhatsApp</span>
+              </a>
+
+              <button
+                id="mobile-nav-share-btn"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setIsShareModalOpen(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-xs font-semibold uppercase tracking-wider border border-stone-300 dark:border-stone-700 rounded-lg"
+              >
+                <Share2 className="w-4 h-4 text-[#8C6239] dark:text-[#C5A880]" />
+                <span>Share Studio & Social Card</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenQuote();
+                }}
+                className="w-full mt-2 py-3 bg-[#132629] dark:bg-[#C5A880] text-[#FAF8F5] dark:text-[#132629] text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 btn-luxury rounded-lg shadow"
+              >
+                <span>Book Free Consultation</span>
+                <ArrowRight className="w-3.5 h-3.5 text-[#C5A880] dark:text-[#132629]" />
+              </button>
             </div>
-
-            <a
-              href="tel:+8801960481983"
-              className="flex items-center gap-2.5 text-sm font-semibold text-[#132629] dark:text-[#FAF8F5]"
-            >
-              <Phone className="w-4 h-4 text-[#8C6239] dark:text-[#C5A880]" />
-              <span>+880 1960-481983</span>
-            </a>
-
-            <a
-              href="https://wa.me/8801960481983"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400"
-            >
-              <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>Chat on WhatsApp</span>
-            </a>
-
-            <button
-              id="mobile-nav-share-btn"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setIsShareModalOpen(true);
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-xs font-semibold uppercase tracking-wider border border-stone-300 dark:border-stone-700"
-            >
-              <Share2 className="w-4 h-4 text-[#8C6239] dark:text-[#C5A880]" />
-              <span>Share Studio & Social Card</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                onOpenQuote();
-              }}
-              className="w-full mt-2 py-3 bg-[#132629] dark:bg-[#C5A880] text-[#FAF8F5] dark:text-[#132629] text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 btn-luxury"
-            >
-              <span>Book Free Consultation</span>
-              <ArrowRight className="w-3.5 h-3.5 text-[#C5A880] dark:text-[#132629]" />
-            </button>
           </div>
-        </div>
+        </>
       )}
 
       {/* Studio Social Share / Open Graph Modal */}

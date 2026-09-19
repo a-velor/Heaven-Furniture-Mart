@@ -6,6 +6,8 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
+import { CustomCursor } from './components/CustomCursor';
+import { MobileActionBar } from './components/MobileActionBar';
 
 // Code splitting below-the-fold components for optimal performance
 const FeaturedSlider = lazy(() =>
@@ -70,7 +72,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF8F5] dark:bg-[#0B1617] text-[#2C221E] dark:text-[#F2EFE9] antialiased selection:bg-[#C5A880]/30 selection:text-[#132629] dark:selection:text-[#FAF8F5] transition-colors duration-300">
+    <div className="min-h-screen flex flex-col pb-16 md:pb-0 bg-[#FAF8F5] dark:bg-[#0B1617] text-[#2C221E] dark:text-[#F2EFE9] antialiased selection:bg-[#C5A880]/30 selection:text-[#132629] dark:selection:text-[#FAF8F5] transition-colors duration-300">
       {/* Top Navigation Bar with Dark Mode Toggle */}
       <Navbar onOpenQuote={handleOpenQuote} />
 
@@ -125,6 +127,12 @@ export default function App() {
       <Suspense fallback={null}>
         <FloatingWhatsApp />
       </Suspense>
+
+      {/* Mobile-Only Ergonomic Bottom Action Bar */}
+      <MobileActionBar onOpenQuote={() => handleOpenQuote()} />
+
+      {/* Bespoke Luxury Fluid Custom Cursor */}
+      <CustomCursor />
     </div>
   );
 }

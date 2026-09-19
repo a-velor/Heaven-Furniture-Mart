@@ -63,15 +63,21 @@ const getAgrabadCurrentTime = (): string => {
 
 export const FloatingWhatsApp: React.FC = () => {
   const [isHovered, setIsHovered] = useState(false);
+  const [isAutoShown, setIsAutoShown] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
   const [isBelow480, setIsBelow480] = useState(false);
   const [isAvailable, setIsAvailable] = useState<boolean>(checkIsBusinessHours);
   const [isLowPowerMode, setIsLowPowerMode] = useState<boolean>(false);
   const [isPreconnected, setIsPreconnected] = useState(false);
   const [agrabadTime, setAgrabadTime] = useState<string>(getAgrabadCurrentTime);
+  const [isTyping, setIsTyping] = useState(false);
   const hasPingedRef = useRef(false);
   const hasWarmedUpRef = useRef(false);
+  const hasInteractedRef = useRef(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoShowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Pre-fetch & connection warmup helper for WhatsApp
   const warmupWhatsAppConnection = useCallback(() => {
@@ -312,11 +318,76 @@ export const FloatingWhatsApp: React.FC = () => {
     }
   }, []);
 
+  // Records any user interaction with the button/tooltip to cancel or suppress auto-show
+  const recordUserInteraction = useCallback(() => {
+    if (autoShowTimerRef.current) {
+      clearTimeout(autoShowTimerRef.current);
+      autoShowTimerRef.current = null;
+    }
+    if (autoHideTimerRef.current) {
+      clearTimeout(autoHideTimerRef.current);
+      autoHideTimerRef.current = null;
+    }
+    hasInteractedRef.current = true;
+    setHasInteracted(true);
+    setIsAutoShown(false);
+    try {
+      sessionStorage.setItem('hfm_wa_interacted', 'true');
+    } catch {
+      // Storage restricted fallback
+    }
+  }, []);
+
+  // 5-second Auto-Show timer for #whatsapp-tooltip (only triggers if user hasn't interacted yet)
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('hfm_wa_interacted') === 'true') {
+        hasInteractedRef.current = true;
+        setHasInteracted(true);
+        return;
+      }
+    } catch {
+      // Storage restricted fallback
+    }
+
+    autoShowTimerRef.current = setTimeout(() => {
+      // Trigger auto-show only if user hasn't interacted and tooltip hasn't been dismissed
+      if (!hasInteractedRef.current && !isDismissed) {
+        setIsAutoShown(true);
+        setAgrabadTime(getAgrabadCurrentTime());
+        warmupWhatsAppConnection();
+
+        // Optional gentle ping if audio is not suppressed by low-power mode
+        if (!hasPingedRef.current && !isLowPowerMode) {
+          try {
+            sessionStorage.setItem('hfm_wa_ping_played', 'true');
+          } catch {
+            // ignore
+          }
+          hasPingedRef.current = true;
+          playLuxuryPing();
+        }
+
+        // Auto-hide after 8 seconds of untouched display
+        autoHideTimerRef.current = setTimeout(() => {
+          setIsAutoShown(false);
+        }, 8000);
+      }
+    }, 5000);
+
+    return () => {
+      if (autoShowTimerRef.current) clearTimeout(autoShowTimerRef.current);
+      if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
+    };
+  }, [isDismissed, isLowPowerMode, playLuxuryPing, warmupWhatsAppConnection]);
+
   const handleButtonMouseOver = () => {
+    recordUserInteraction();
     warmupWhatsAppConnection();
   };
 
   const handleButtonMouseEnter = () => {
+    recordUserInteraction();
     handleButtonMouseOver();
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
@@ -347,7 +418,22 @@ export const FloatingWhatsApp: React.FC = () => {
     }, 150);
   };
 
+  const handleButtonFocus = () => {
+    recordUserInteraction();
+    handleButtonMouseEnter();
+  };
+
+  const handleButtonTouchStart = () => {
+    recordUserInteraction();
+    handleButtonMouseOver();
+  };
+
+  const handleButtonClick = () => {
+    recordUserInteraction();
+  };
+
   const handleTooltipMouseEnter = () => {
+    recordUserInteraction();
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
@@ -361,15 +447,46 @@ export const FloatingWhatsApp: React.FC = () => {
     }, 150);
   };
 
+  const handleDismissTooltip = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    recordUserInteraction();
+    setIsDismissed(true);
+    setIsHovered(false);
+    setIsAutoShown(false);
+  };
+
+  const isTooltipVisible = !isDismissed && (isHovered || isAutoShown);
+
+  // Trigger typing indicator animation inside #whatsapp-tooltip before main text appears
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    if (isTooltipVisible) {
+      if (isLowPowerMode) {
+        setIsTyping(false);
+      } else {
+        setIsTyping(true);
+        timer = setTimeout(() => {
+          setIsTyping(false);
+        }, 1100);
+      }
+    } else {
+      setIsTyping(false);
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isTooltipVisible, isLowPowerMode]);
+
   return (
     <div
       id="floating-whatsapp-container"
       data-whatsapp-container
       className={`fixed z-40 flex items-end gap-3 pointer-events-none transition-all duration-300 ${
         isBelow480
-          ? 'bottom-4 left-4 right-auto flex-row-reverse'
-          : 'bottom-6 right-6 left-auto'
-      } max-[480px]:bottom-4 max-[480px]:left-4 max-[480px]:right-auto max-[480px]:flex-row-reverse max-[480px]:bottom-[max(1rem,env(safe-area-inset-bottom))] max-[480px]:left-[max(1rem,env(safe-area-inset-left))]`}
+          ? 'bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] left-4 right-auto flex-row-reverse'
+          : 'bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] md:bottom-6 right-6 left-auto'
+      } max-[480px]:bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] max-[480px]:left-[max(1rem,env(safe-area-inset-left))] max-[480px]:right-auto max-[480px]:flex-row-reverse`}
     >
       
       {/* Floating Info Tooltip with Spring Entrance Transition */}
@@ -379,20 +496,20 @@ export const FloatingWhatsApp: React.FC = () => {
           role="tooltip"
           onMouseEnter={handleTooltipMouseEnter}
           onMouseLeave={handleTooltipMouseLeave}
-          className={`bg-[#132629] dark:bg-[#122022] text-[#FAF8F5] p-3.5 max-[480px]:p-2.5 max-[480px]:px-3 max-[480px]:py-2.5 max-[480px]:text-center shadow-2xl border border-[#C5A880]/40 max-w-[240px] max-[480px]:max-w-[210px] relative block transform transition-all ${
+          data-auto-shown={isAutoShown ? 'true' : 'false'}
+          data-visible={isTooltipVisible ? 'true' : 'false'}
+          data-interacted={hasInteracted ? 'true' : 'false'}
+          className={`bg-[#132629]/90 dark:bg-[#122022]/90 backdrop-blur-md supports-[backdrop-filter]:bg-[#132629]/85 dark:supports-[backdrop-filter]:bg-[#122022]/85 text-[#FAF8F5] p-3.5 max-[480px]:p-2.5 max-[480px]:px-3 max-[480px]:py-2.5 max-[480px]:text-center shadow-2xl border border-[#C5A880]/40 rounded-[1.5rem] max-w-[240px] max-[480px]:max-w-[210px] relative block transform transition-all ${
             isBelow480 ? 'origin-bottom-left text-center' : 'origin-bottom-right text-left'
           } ${
-            isHovered
-              ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
+            isTooltipVisible
+              ? 'opacity-100 translate-y-0 scale-100 hover:scale-[1.02] pointer-events-auto'
               : 'opacity-0 translate-y-2.5 scale-95 pointer-events-none'
           }`}
         >
           <button
-            onClick={() => {
-              setIsDismissed(true);
-              setIsHovered(false);
-            }}
-            className="absolute -top-2 -right-2 w-5 h-5 bg-stone-700 hover:bg-stone-900 text-white rounded-full flex items-center justify-center text-[10px] transition-colors shadow"
+            onClick={handleDismissTooltip}
+            className="absolute -top-2 -right-2 w-5 h-5 bg-stone-700 hover:bg-stone-900 text-white rounded-full flex items-center justify-center text-[10px] transition-colors shadow cursor-pointer"
             aria-label="Dismiss message"
           >
             <X className="w-3 h-3" />
@@ -418,38 +535,63 @@ export const FloatingWhatsApp: React.FC = () => {
               </span>
             )}
           </div>
-          <p className="text-xs text-stone-300 dark:text-stone-300 leading-snug font-light max-[480px]:text-center">
-            {isAvailable
-              ? 'Need custom advice or price estimates? Chat live with our Agrabad master artisans.'
-              : 'Studio is closed for the evening. Leave your room dimensions or inquiry — our auto-responder logs your request for prompt morning follow-up.'}
-          </p>
-
-          {/* Business Hours: Response time indicator */}
-          {isAvailable && (
-            <div className="mt-2.5 pt-2 border-t border-[#C5A880]/30 flex items-center justify-between max-[480px]:justify-center max-[480px]:gap-2 max-[480px]:text-center text-[11px] text-stone-300">
-              <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-[#C5A880] font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
-                Response time:
-              </span>
-              <span
-                id="whatsapp-response-time-badge"
-                className="font-mono text-[11px] font-semibold text-emerald-200 dark:text-emerald-200 bg-[#0e2c29] dark:bg-[#164039] border border-emerald-500/40 dark:border-emerald-400/50 px-2 py-0.5 rounded shadow-sm tracking-tight"
-              >
-                &lt; 1 hour
+          {isTyping ? (
+            <div
+              id="whatsapp-tooltip-typing"
+              className="py-2.5 px-0.5 flex items-center gap-2 text-[#FAF8F5] transition-opacity duration-300 max-[480px]:justify-center"
+              aria-label="Artisan consultant is typing"
+            >
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-stone-900/60 border border-[#C5A880]/30 shadow-inner">
+                <span className="whatsapp-typing-dot" />
+                <span className="whatsapp-typing-dot" />
+                <span className="whatsapp-typing-dot" />
+              </div>
+              <span className="text-[11px] text-[#C5A880] font-serif italic tracking-wide">
+                Consultant is typing...
               </span>
             </div>
-          )}
+          ) : (
+            <div className="transition-opacity duration-300">
+              <p className="text-xs text-stone-300 dark:text-stone-300 leading-snug font-light max-[480px]:text-center">
+                {isAvailable ? (
+                  <>
+                    Need <span className="whatsapp-tooltip-highlight">custom advice</span> or price estimates? Chat live with our Agrabad <span className="whatsapp-tooltip-highlight">master artisans</span>.
+                  </>
+                ) : (
+                  <>
+                    Studio is closed for the evening. Leave your <span className="whatsapp-tooltip-highlight">room dimensions</span> or inquiry — our auto-responder logs your request for <span className="whatsapp-tooltip-highlight">prompt morning follow-up</span>.
+                  </>
+                )}
+              </p>
 
-          {/* Dynamic Agrabad Local Time Display After Business Hours */}
-          {!isAvailable && (
-            <div className="mt-2.5 pt-2 border-t border-[#C5A880]/30 flex items-center justify-between max-[480px]:justify-center max-[480px]:gap-2 max-[480px]:text-center text-[11px] text-stone-300">
-              <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#C5A880] font-medium">
-                <Clock className="w-3 h-3 text-[#C5A880]" />
-                Agrabad Local Time:
-              </span>
-              <span className="font-mono text-xs font-semibold text-white bg-stone-800/90 px-1.5 py-0.5 rounded border border-stone-700 shadow-inner">
-                {agrabadTime}
-              </span>
+              {/* Business Hours: Response time indicator */}
+              {isAvailable && (
+                <div className="mt-2.5 pt-2 border-t border-[#C5A880]/30 flex items-center justify-between max-[480px]:justify-center max-[480px]:gap-2 max-[480px]:text-center text-[11px] text-stone-300">
+                  <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-[#C5A880] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
+                    Response time:
+                  </span>
+                  <span
+                    id="whatsapp-response-time-badge"
+                    className="font-mono text-[11px] font-semibold text-emerald-200 dark:text-emerald-200 bg-[#0e2c29] dark:bg-[#164039] border border-emerald-500/40 dark:border-emerald-400/50 px-2 py-0.5 rounded shadow-sm tracking-tight"
+                  >
+                    &lt; 1 hour
+                  </span>
+                </div>
+              )}
+
+              {/* Dynamic Agrabad Local Time Display After Business Hours */}
+              {!isAvailable && (
+                <div className="mt-2.5 pt-2 border-t border-[#C5A880]/30 flex items-center justify-between max-[480px]:justify-center max-[480px]:gap-2 max-[480px]:text-center text-[11px] text-stone-300">
+                  <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#C5A880] font-medium">
+                    <Clock className="w-3 h-3 text-[#C5A880]" />
+                    Agrabad Local Time:
+                  </span>
+                  <span className="font-mono text-xs font-semibold text-white bg-stone-800/90 px-1.5 py-0.5 rounded border border-stone-700 shadow-inner">
+                    {agrabadTime}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -461,17 +603,20 @@ export const FloatingWhatsApp: React.FC = () => {
         href="https://wa.me/8801960481983?text=Hello%20Heaven%20Furniture%20Mart!%20I%20would%20like%20to%20inquire%20about%20a%20bespoke%20piece."
         target="_blank"
         rel="noopener noreferrer"
+        onClick={handleButtonClick}
         onMouseOver={handleButtonMouseOver}
         onMouseEnter={handleButtonMouseEnter}
         onMouseLeave={handleButtonMouseLeave}
-        onFocus={handleButtonMouseEnter}
+        onFocus={handleButtonFocus}
         onBlur={handleButtonMouseLeave}
-        onTouchStart={handleButtonMouseOver}
+        onTouchStart={handleButtonTouchStart}
         aria-describedby="whatsapp-tooltip"
         data-status={isAvailable ? 'available' : 'after-hours'}
         data-prefetched={isPreconnected ? 'true' : 'false'}
         data-connection-warm={isPreconnected ? 'true' : 'false'}
         data-low-power-mode={isLowPowerMode ? 'true' : 'false'}
+        data-interacted={hasInteracted ? 'true' : 'false'}
+        data-auto-shown={isAutoShown ? 'true' : 'false'}
         className={`pointer-events-auto relative w-14 h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 focus:outline-none ${
           isAvailable
             ? `border-2 border-emerald-400 dark:border-emerald-400 ${
